@@ -1,6 +1,6 @@
 {
-  "name": "Sentry",
-  "version": "0.0.0",
+  "name": "sentry",
+  "version": "9.0.0",
   "repository": {
     "type": "git",
     "url": "git://github.com/getsentry/sentry.git"
