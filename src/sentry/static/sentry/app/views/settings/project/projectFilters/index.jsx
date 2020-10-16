@@ -3,29 +3,37 @@ import React from 'react';
 
 import {t} from 'app/locale';
 import GroupTombstones from 'app/views/settings/project/projectFilters/groupTombstones';
+import NavTabs from 'app/components/navTabs';
+import SentryDocumentTitle from 'app/components/sentryDocumentTitle';
+import PermissionAlert from 'app/views/settings/project/permissionAlert';
 import ProjectFiltersChart from 'app/views/settings/project/projectFilters/projectFiltersChart';
 import ProjectFiltersSettings from 'app/views/settings/project/projectFilters/projectFiltersSettings';
 import SentryTypes from 'app/sentryTypes';
 import SettingsPageHeader from 'app/views/settings/components/settingsPageHeader';
 import TextBlock from 'app/views/settings/components/text/textBlock';
 import recreateRoute from 'app/utils/recreateRoute';
+import withProject from 'app/utils/withProject';
 
 class ProjectFilters extends React.Component {
-  static contextTypes = {
-    organization: SentryTypes.Organization,
+  static propTypes = {
     project: SentryTypes.Project,
   };
 
   render() {
-    let {organization, project} = this.context;
-    let {orgId, projectId, filterType} = this.props.params;
-    if (!project) return null;
+    const {project, params} = this.props;
+    const {orgId, projectId, filterType} = params;
+    if (!project) {
+      return null;
+    }
 
-    let features = new Set(project.features);
+    const features = new Set(project.features);
 
     return (
       <div>
+        <SentryDocumentTitle title={t('Inbound Filters')} objSlug={projectId} />
         <SettingsPageHeader title={t('Inbound Data Filters')} />
+        <PermissionAlert />
+
         <TextBlock>
           {t(
             'Filters allow you to prevent Sentry from storing events in certain situations. Filtered events are tracked separately from rate limits, and do not apply to any project quotas.'
@@ -33,13 +41,10 @@ class ProjectFilters extends React.Component {
         </TextBlock>
 
         <div>
-          <ProjectFiltersChart params={this.props.params} />
+          <ProjectFiltersChart project={project} params={this.props.params} />
 
           {features.has('discard-groups') && (
-            <ul
-              className="nav nav-tabs"
-              style={{borderBottom: '1px solid #ddd', paddingTop: '30px'}}
-            >
+            <NavTabs underlined style={{paddingTop: '30px'}}>
               <li className={filterType === 'data-filters' ? 'active' : ''}>
                 <Link to={recreateRoute('data-filters/', {...this.props, stepBack: -1})}>
                   {t('Data Filters')}
@@ -52,15 +57,14 @@ class ProjectFilters extends React.Component {
                   {t('Discarded Issues')}
                 </Link>
               </li>
-            </ul>
+            </NavTabs>
           )}
 
-          {filterType == 'discarded-groups' ? (
-            <GroupTombstones orgId={orgId} projectId={projectId} />
+          {filterType === 'discarded-groups' ? (
+            <GroupTombstones orgId={orgId} projectId={project.slug} />
           ) : (
             <ProjectFiltersSettings
               project={project}
-              organization={organization}
               params={this.props.params}
               features={features}
             />
@@ -71,4 +75,4 @@ class ProjectFilters extends React.Component {
   }
 }
 
-export default ProjectFilters;
+export default withProject(ProjectFilters);

@@ -8,8 +8,11 @@ from .slack import *  # NOQA
 from .github import *  # NOQA
 from .github_enterprise import *  # NOQA
 from .vsts import *  # NOQA
+from .vsts_extension import *  # NOQA
 from .bitbucket import *  # NOQA
-
+from .gitlab import *  # NOQA
+from .google import *  # NOQA
+from .vercel import *  # NOQA
 
 default_manager = IdentityManager()
 all = default_manager.all
@@ -24,4 +27,8 @@ register(SlackIdentityProvider)  # NOQA
 register(GitHubIdentityProvider)  # NOQA
 register(GitHubEnterpriseIdentityProvider)  # NOQA
 register(VSTSIdentityProvider)  # NOQA
+register(VstsExtensionIdentityProvider)  # NOQA
+register(VercelIdentityProvider)  # NOQA
 register(BitbucketIdentityProvider)  # NOQA
+register(GitlabIdentityProvider)  # NOQA
+register(GoogleIdentityProvider)  # NOQA

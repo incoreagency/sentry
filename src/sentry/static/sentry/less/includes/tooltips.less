@@ -1,12 +1,125 @@
-@tooltip-bg: @100;
+//
+// Tooltips
+// --------------------------------------------------
+
+// Base class
+.tooltip {
+  position: absolute;
+  z-index: @zindex-tooltip;
+  display: block;
+  // Our parent element can be arbitrary since tooltips are by default inserted as a sibling of their target element.
+  // So reset our font and text properties to avoid inheriting weird values.
+  .reset-text();
+  font-size: @font-size-small;
+
+  .opacity(0);
+
+  &.in {
+    .opacity(@tooltip-opacity);
+  }
+  &.top {
+    padding: @tooltip-arrow-width 0;
+    margin-top: -3px;
+  }
+  &.right {
+    padding: 0 @tooltip-arrow-width;
+    margin-left: 3px;
+  }
+  &.bottom {
+    padding: @tooltip-arrow-width 0;
+    margin-top: 3px;
+  }
+  &.left {
+    padding: 0 @tooltip-arrow-width;
+    margin-left: -3px;
+  }
+
+  // Note: Deprecated .top-left, .top-right, .bottom-left, and .bottom-right as of v3.3.1
+  &.top .tooltip-arrow {
+    bottom: 0;
+    left: 50%;
+    margin-left: -@tooltip-arrow-width;
+    border-width: @tooltip-arrow-width @tooltip-arrow-width 0;
+    border-top-color: @tooltip-arrow-color;
+  }
+  &.top-left .tooltip-arrow {
+    right: @tooltip-arrow-width;
+    bottom: 0;
+    margin-bottom: -@tooltip-arrow-width;
+    border-width: @tooltip-arrow-width @tooltip-arrow-width 0;
+    border-top-color: @tooltip-arrow-color;
+  }
+  &.top-right .tooltip-arrow {
+    bottom: 0;
+    left: @tooltip-arrow-width;
+    margin-bottom: -@tooltip-arrow-width;
+    border-width: @tooltip-arrow-width @tooltip-arrow-width 0;
+    border-top-color: @tooltip-arrow-color;
+  }
+  &.right .tooltip-arrow {
+    top: 50%;
+    left: 0;
+    margin-top: -@tooltip-arrow-width;
+    border-width: @tooltip-arrow-width @tooltip-arrow-width @tooltip-arrow-width 0;
+    border-right-color: @tooltip-arrow-color;
+  }
+  &.left .tooltip-arrow {
+    top: 50%;
+    right: 0;
+    margin-top: -@tooltip-arrow-width;
+    border-width: @tooltip-arrow-width 0 @tooltip-arrow-width @tooltip-arrow-width;
+    border-left-color: @tooltip-arrow-color;
+  }
+  &.bottom .tooltip-arrow {
+    top: 0;
+    left: 50%;
+    margin-left: -@tooltip-arrow-width;
+    border-width: 0 @tooltip-arrow-width @tooltip-arrow-width;
+    border-bottom-color: @tooltip-arrow-color;
+  }
+  &.bottom-left .tooltip-arrow {
+    top: 0;
+    right: @tooltip-arrow-width;
+    margin-top: -@tooltip-arrow-width;
+    border-width: 0 @tooltip-arrow-width @tooltip-arrow-width;
+    border-bottom-color: @tooltip-arrow-color;
+  }
+  &.bottom-right .tooltip-arrow {
+    top: 0;
+    left: @tooltip-arrow-width;
+    margin-top: -@tooltip-arrow-width;
+    border-width: 0 @tooltip-arrow-width @tooltip-arrow-width;
+    border-bottom-color: @tooltip-arrow-color;
+  }
+}
+
+// Wrapper for the tooltip content
+.tooltip-inner {
+  max-width: @tooltip-max-width;
+  padding: 3px 8px;
+  color: @tooltip-color;
+  background-color: @tooltip-bg;
+  border-radius: @border-radius-base;
+}
+
+// Arrows
+.tooltip-arrow {
+  position: absolute;
+  width: 0;
+  height: 0;
+  border-color: transparent;
+  border-style: solid;
+}
+
 @tooltip-color: @white;
 @tooltip-max-width: 200px;
 
+.tooltip-content,
 .tooltip-inner {
   font-weight: bold;
-  // border: 1px solid @trim;
   padding: 5px 10px;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+  overflow-wrap: break-word;
 
   hr {
     border: 0px;
@@ -36,7 +149,6 @@
     margin-right: 0;
     border-radius: 3px 3px 0 0;
     position: relative;
-    margin-bottom: 2px;
 
     &:after {
       display: block;
@@ -51,6 +163,8 @@
   }
 
   .value-label {
+    display: flex;
+    justify-content: space-between;
     padding: 3px 0;
   }
 
@@ -79,9 +193,9 @@
       }
 
       span {
-        .square(9px);
+        width: 9px;
+        height: 9px;
         display: inline-block;
-        // border: 1px solid #fff;
         border-radius: 50%;
       }
     }
@@ -115,83 +229,6 @@
       float: none;
       text-align: right;
       margin: 0 0 0 80px;
-    }
-  }
-}
-
-// Owners
-
-.tooltip-owners {
-  max-width: 310px !important;
-  text-align: left;
-  font-weight: normal;
-  font-size: 13px;
-  padding: 6px 15px;
-
-  .tooltip-owners-heading {
-    .clearfix;
-    margin-bottom: 2px;
-  }
-
-  .tooltip-owners-name,
-  .tooltip-owners-date {
-    font-size: 12px;
-  }
-
-  .tooltip-owners-name {
-    font-weight: bold;
-  }
-
-  .tooltip-owners-date {
-    color: @40;
-  }
-
-  ul.tooltip-owners-commits {
-    .list-unstyled;
-    margin: 0 0 5px;
-
-    li.tooltip-owners-commit {
-      position: relative;
-      line-height: 1.4;
-      margin-bottom: 4px;
-
-      &:before {
-        display: block;
-        position: absolute;
-        content: '';
-        left: -15px;
-        top: 8px;
-        width: 5px;
-        height: 2px;
-        background: @70;
-      }
-    }
-  }
-
-  // Unknown member
-
-  .tooltip-owners-unknown {
-    padding: 14px 0 0;
-    text-align: center;
-
-    .icon-circle-cross {
-      font-size: 18px;
-      color: @red;
-      vertical-align: text-top;
-      margin-right: 6px;
-    }
-
-    .tooltip-owners-unknown-email {
-      font-size: 15px;
-    }
-
-    p {
-      line-height: 1.4;
-      margin: 0 0 10px;
-
-      &:last-child {
-        margin-bottom: 0;
-      }
     }
   }
 }

@@ -1,9 +1,7 @@
 import React from 'react';
 
-import BarSeries from './series/barSeries.jsx';
+import BarSeries from './series/barSeries';
 import BaseChart from './baseChart';
-import YAxis from './components/yAxis';
-import XAxis from './components/xAxis';
 
 export default class BarChart extends React.Component {
   static propTypes = {
@@ -11,24 +9,25 @@ export default class BarChart extends React.Component {
   };
 
   render() {
-    const {series, stacked} = this.props;
+    const {series, stacked, xAxis, ...props} = this.props;
 
     return (
       <BaseChart
-        {...this.props}
-        options={{
-          xAxis: XAxis({
-            type: 'category',
-          }),
-          yAxis: YAxis({}),
-          series: series.map((s, i) => {
-            return BarSeries({
-              name: s.seriesName,
-              stack: stacked ? 'stack1' : null,
-              data: s.data.map(({value, name}) => [name, value]),
-            });
-          }),
-        }}
+        {...props}
+        xAxis={xAxis !== null ? {...(xAxis || {}), boundaryGap: true} : null}
+        series={series.map(({seriesName, data, ...options}) =>
+          BarSeries({
+            name: seriesName,
+            stack: stacked ? 'stack1' : null,
+            data: data.map(({value, name, itemStyle}) => {
+              if (itemStyle === undefined) {
+                return [name, value];
+              }
+              return {value: [name, value], itemStyle};
+            }),
+            ...options,
+          })
+        )}
       />
     );
   }

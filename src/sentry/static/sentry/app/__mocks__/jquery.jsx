@@ -1,4 +1,4 @@
-let jq = {
+const jq = {
   tooltip: () => jq,
   on: () => jq,
   off: () => jq,
@@ -6,6 +6,9 @@ let jq = {
   ajaxError: () => jq,
   simpleSlider: () => jq,
   addClass: () => jq,
+  find: () => jq,
 };
 
-export default () => jq;
+const jqMock = () => jq;
+
+export default jqMock;

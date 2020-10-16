@@ -1,4 +1,4 @@
-import {debounce} from 'lodash';
+import debounce from 'lodash/debounce';
 import PropTypes from 'prop-types';
 import React from 'react';
 
@@ -14,6 +14,7 @@ import SelectControl from './selectControl';
  */
 class SelectAsyncControl extends React.Component {
   static propTypes = {
+    forwardedRef: PropTypes.any,
     /**
      * API endpoint URL
      */
@@ -46,26 +47,33 @@ class SelectAsyncControl extends React.Component {
   }
 
   componentWillUnmount() {
-    if (!this.api) return;
+    if (!this.api) {
+      return;
+    }
     this.api.clear();
     this.api = null;
   }
 
   doQuery = debounce(cb => {
-    let {url, onQuery} = this.props;
-    let {query} = this.state;
+    const {url, onQuery} = this.props;
+    const {query} = this.state;
 
-    if (!this.api) return null;
+    if (!this.api) {
+      return null;
+    }
 
     return this.api
       .requestPromise(url, {
         query: typeof onQuery === 'function' ? onQuery(query) : {query},
       })
-      .then(data => cb(null, data), err => cb(err));
+      .then(
+        data => cb(null, data),
+        err => cb(err)
+      );
   }, 250);
 
-  handleLoadOptions = () => {
-    return new Promise((resolve, reject) => {
+  handleLoadOptions = () =>
+    new Promise((resolve, reject) => {
       this.doQuery((err, result) => {
         if (err) {
           reject(err);
@@ -75,7 +83,7 @@ class SelectAsyncControl extends React.Component {
       });
     }).then(
       resp => {
-        let {onResults} = this.props;
+        const {onResults} = this.props;
 
         // Note `SelectControl` expects this data type:
         // {
@@ -92,17 +100,17 @@ class SelectAsyncControl extends React.Component {
         console.error(err);
       }
     );
-  };
 
   handleInputChange = query => {
     this.setState({query});
   };
 
   render() {
-    let {value} = this.props;
+    const {value} = this.props;
 
     return (
       <SelectControl
+        ref={this.props.forwardedRef}
         value={value}
         defaultOptions
         loadOptions={this.handleLoadOptions}
@@ -116,13 +124,7 @@ class SelectAsyncControl extends React.Component {
   }
 }
 
-export default SelectAsyncControl;
+const forwardRef = (p, ref) => <SelectAsyncControl {...p} forwardedRef={ref} />;
+forwardRef.displayName = 'SelectAsyncControl';
 
-// TODO: This needs an enzyme update or else it breaks tests
-
-// function forwardRef(props, ref) {
-// return <SelectAsyncControl {...props} forwardedRef={ref} />;
-// }
-// forwardRef.displayName = 'forwardRef(SelectAsyncField)';
-
-// export default React.forwardRef(forwardRef);
+export default React.forwardRef(forwardRef);

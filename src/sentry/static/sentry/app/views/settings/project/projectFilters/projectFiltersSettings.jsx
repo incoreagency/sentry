@@ -1,16 +1,24 @@
-import {Flex} from 'grid-emotion';
 import PropTypes from 'prop-types';
 import React from 'react';
-import styled from 'react-emotion';
+import styled from '@emotion/styled';
 
+import {
+  Panel,
+  PanelAlert,
+  PanelBody,
+  PanelHeader,
+  PanelItem,
+} from 'app/components/panels';
 import {t} from 'app/locale';
+import Access from 'app/components/acl/access';
 import AsyncComponent from 'app/components/asyncComponent';
+import Feature from 'app/components/acl/feature';
+import FeatureDisabled from 'app/components/acl/featureDisabled';
 import FieldFromConfig from 'app/views/settings/components/forms/fieldFromConfig';
 import Form from 'app/views/settings/components/forms/form';
 import FormField from 'app/views/settings/components/forms/formField';
 import HookStore from 'app/stores/hookStore';
 import JsonForm from 'app/views/settings/components/forms/jsonForm';
-import {Panel, PanelBody, PanelHeader, PanelItem} from 'app/components/panels';
 import SentryTypes from 'app/sentryTypes';
 import Switch from 'app/components/switch';
 import filterGroups, {customFilterFields} from 'app/data/forms/inboundFilters';
@@ -29,6 +37,11 @@ const LEGACY_BROWSER_SUBFILTERS = {
   ie10: {
     icon: 'internet-explorer',
     helpText: 'Version 10',
+    title: 'Internet Explorer',
+  },
+  ie11: {
+    icon: 'internet-explorer',
+    helpText: 'Version 11',
     title: 'Internet Explorer',
   },
   safari_pre_6: {
@@ -59,6 +72,7 @@ class LegacyBrowserFilterRow extends React.Component {
   static propTypes = {
     data: PropTypes.object.isRequired,
     onToggle: PropTypes.func.isRequired,
+    disabled: PropTypes.bool,
   };
 
   constructor(props) {
@@ -103,34 +117,38 @@ class LegacyBrowserFilterRow extends React.Component {
   };
 
   render() {
+    const {disabled} = this.props;
     return (
       <div>
-        <BulkFilter>
-          <BulkFilterLabel>{t('Filter')}:</BulkFilterLabel>
-          <BulkFilterItem onClick={this.handleToggleSubfilters.bind(this, true)}>
-            {t('All')}
-          </BulkFilterItem>
-          <BulkFilterItem onClick={this.handleToggleSubfilters.bind(this, false)}>
-            {t('None')}
-          </BulkFilterItem>
-        </BulkFilter>
+        {!disabled && (
+          <BulkFilter>
+            <BulkFilterLabel>{t('Filter')}:</BulkFilterLabel>
+            <BulkFilterItem onClick={this.handleToggleSubfilters.bind(this, true)}>
+              {t('All')}
+            </BulkFilterItem>
+            <BulkFilterItem onClick={this.handleToggleSubfilters.bind(this, false)}>
+              {t('None')}
+            </BulkFilterItem>
+          </BulkFilter>
+        )}
 
         <FilterGrid>
           {LEGACY_BROWSER_KEYS.map(key => {
-            let subfilter = LEGACY_BROWSER_SUBFILTERS[key];
+            const subfilter = LEGACY_BROWSER_SUBFILTERS[key];
             return (
               <FilterGridItemWrapper key={key}>
                 <FilterGridItem>
-                  <Flex align="center" flex="1">
+                  <FilterItem>
                     <FilterGridIcon className={`icon-${subfilter.icon}`} />
                     <div>
                       <FilterTitle>{subfilter.title}</FilterTitle>
                       <FilterDescription>{subfilter.helpText}</FilterDescription>
                     </div>
-                  </Flex>
+                  </FilterItem>
 
                   <Switch
                     isActive={this.state.subfilters.has(key)}
+                    isDisabled={disabled}
                     css={{flexShrink: 0, marginLeft: 6}}
                     toggle={this.handleToggleSubfilters.bind(this, key)}
                     size="lg"
@@ -148,7 +166,6 @@ class LegacyBrowserFilterRow extends React.Component {
 class ProjectFiltersSettings extends AsyncComponent {
   static propTypes = {
     project: SentryTypes.Project,
-    organization: SentryTypes.Organization,
     params: PropTypes.object,
     features: PropTypes.object,
   };
@@ -158,116 +175,152 @@ class ProjectFiltersSettings extends AsyncComponent {
       hooksDisabled: HookStore.get('project:custom-inbound-filters:disabled'),
     };
   }
+
   getEndpoints() {
-    let {orgId, projectId} = this.props.params;
+    const {orgId, projectId} = this.props.params;
     return [
       ['filterList', `/projects/${orgId}/${projectId}/filters/`],
       ['project', `/projects/${orgId}/${projectId}/`],
     ];
   }
 
-  handleLegacyChange = (onChange, onBlur, filter, subfilters, e) => {
+  componentDidUpdate(prevProps, prevState) {
+    if (prevProps.project !== this.props.project) {
+      this.reloadData();
+    }
+    super.componentDidUpdate(prevProps, prevState);
+  }
+
+  handleLegacyChange = (onChange, onBlur, _filter, subfilters, e) => {
     onChange(subfilters, e);
     onBlur(subfilters, e);
   };
 
-  renderDisabledFeature(fields) {
-    let {project, organization} = this.props;
-    return this.state.hooksDisabled.map(hook =>
-      hook(organization, project, null, fields)
-    );
-  }
+  renderDisabledCustomFilters = p => (
+    <FeatureDisabled
+      featureName={t('Custom Inbound Filters')}
+      features={p.features}
+      alert={PanelAlert}
+      message={t(
+        'Release and Error Message filtering are not enabled on your Sentry installation'
+      )}
+    />
+  );
+
+  renderCustomFilters = disabled => () => (
+    <Feature
+      features={['projects:custom-inbound-filters']}
+      hookName="feature-disabled:custom-inbound-filters"
+      renderDisabled={({children, ...props}) =>
+        children({...props, renderDisabled: this.renderDisabledCustomFilters})
+      }
+    >
+      {({hasFeature, organization, renderDisabled, ...featureProps}) => (
+        <React.Fragment>
+          {!hasFeature && renderDisabled({organization, ...featureProps})}
+
+          {customFilterFields.map(field => (
+            <FieldFromConfig
+              key={field.name}
+              field={field}
+              disabled={disabled || !hasFeature}
+            />
+          ))}
+        </React.Fragment>
+      )}
+    </Feature>
+  );
 
   renderBody() {
-    let {features, params} = this.props;
-    let {orgId, projectId} = params;
-    let {project} = this.state;
+    const {features, params} = this.props;
+    const {orgId, projectId} = params;
+    const {project} = this.state;
 
-    if (!project) return null;
-    let projectEndpoint = `/projects/${orgId}/${projectId}/`;
-    let filtersEndpoint = `${projectEndpoint}filters/`;
+    if (!project) {
+      return null;
+    }
+    const projectEndpoint = `/projects/${orgId}/${projectId}/`;
+    const filtersEndpoint = `${projectEndpoint}filters/`;
 
     return (
-      <React.Fragment>
-        <Panel>
-          <PanelHeader>{t('Filters')}</PanelHeader>
-          <PanelBody>
-            {this.state.filterList.map((filter, idx) => {
-              let fieldProps = {
-                name: filter.id,
-                label: filter.name,
-                help: filter.description,
-              };
+      <Access access={['project:write']}>
+        {({hasAccess}) => (
+          <React.Fragment>
+            <Panel>
+              <PanelHeader>{t('Filters')}</PanelHeader>
+              <PanelBody>
+                {this.state.filterList.map(filter => {
+                  const fieldProps = {
+                    name: filter.id,
+                    label: filter.name,
+                    help: filter.description,
+                    disabled: !hasAccess,
+                  };
 
-              // Note by default, forms generate data in the format of:
-              // { [fieldName]: [value] }
-              // Endpoints for these filters expect data to be:
-              // { 'active': [value] }
-              return (
-                <PanelItem key={filter.id} p={0}>
-                  <NestedForm
-                    apiMethod="PUT"
-                    apiEndpoint={`${filtersEndpoint}${filter.id}/`}
-                    initialData={{[filter.id]: filter.active}}
-                    saveOnBlur
-                  >
-                    {filter.id !== 'legacy-browsers' ? (
-                      <FieldFromConfig
-                        key={filter.id}
-                        getData={data => ({active: data[filter.id]})}
-                        field={{
-                          type: 'boolean',
-                          ...fieldProps,
-                        }}
-                      />
-                    ) : (
-                      <FormField
-                        inline={false}
-                        {...fieldProps}
-                        getData={data => ({subfilters: data[filter.id]})}
+                  // Note by default, forms generate data in the format of:
+                  // { [fieldName]: [value] }
+                  // Endpoints for these filters expect data to be:
+                  // { 'active': [value] }
+                  return (
+                    <PanelItem key={filter.id} p={0}>
+                      <NestedForm
+                        apiMethod="PUT"
+                        apiEndpoint={`${filtersEndpoint}${filter.id}/`}
+                        initialData={{[filter.id]: filter.active}}
+                        saveOnBlur
                       >
-                        {({onChange, onBlur}) => (
-                          <LegacyBrowserFilterRow
+                        {filter.id !== 'legacy-browsers' ? (
+                          <FieldFromConfig
                             key={filter.id}
-                            data={filter}
-                            onToggle={this.handleLegacyChange.bind(
-                              this,
-                              onChange,
-                              onBlur
-                            )}
+                            getData={data => ({active: data[filter.id]})}
+                            field={{
+                              type: 'boolean',
+                              ...fieldProps,
+                            }}
                           />
+                        ) : (
+                          <FormField
+                            inline={false}
+                            {...fieldProps}
+                            getData={data => ({subfilters: [...data[filter.id]]})}
+                          >
+                            {({onChange, onBlur}) => (
+                              <LegacyBrowserFilterRow
+                                key={filter.id}
+                                data={filter}
+                                disabled={!hasAccess}
+                                onToggle={this.handleLegacyChange.bind(
+                                  this,
+                                  onChange,
+                                  onBlur
+                                )}
+                              />
+                            )}
+                          </FormField>
                         )}
-                      </FormField>
-                    )}
-                  </NestedForm>
-                </PanelItem>
-              );
-            })}
-          </PanelBody>
-        </Panel>
+                      </NestedForm>
+                    </PanelItem>
+                  );
+                })}
+              </PanelBody>
+            </Panel>
 
-        <Form
-          apiMethod="PUT"
-          apiEndpoint={projectEndpoint}
-          initialData={this.state.project.options}
-          saveOnBlur
-        >
-          <JsonForm
-            features={features}
-            forms={filterGroups}
-            renderFooter={() => {
-              // Render additional fields that are behind a feature flag
-              let customFilters = customFilterFields.map(field => (
-                <FieldFromConfig key={field.name} field={field} />
-              ));
-
-              return features.has('custom-inbound-filters')
-                ? customFilters
-                : this.renderDisabledFeature(customFilters);
-            }}
-          />
-        </Form>
-      </React.Fragment>
+            <Form
+              apiMethod="PUT"
+              apiEndpoint={projectEndpoint}
+              initialData={this.state.project.options}
+              saveOnBlur
+            >
+              <JsonForm
+                features={features}
+                forms={filterGroups}
+                disabled={!hasAccess}
+                renderFooter={this.renderCustomFilters(!hasAccess)}
+              />
+            </Form>
+          </React.Fragment>
+        )}
+      </Access>
     );
   }
 }
@@ -278,15 +331,15 @@ const NestedForm = styled(Form)`
   flex: 1;
 `;
 
-const FilterGrid = styled.div`
+const FilterGrid = styled('div')`
   display: flex;
   flex-wrap: wrap;
 `;
 
-const FilterGridItem = styled.div`
+const FilterGridItem = styled('div')`
   display: flex;
   align-items: center;
-  background: ${p => p.theme.whiteDark};
+  background: ${p => p.theme.gray100};
   border-radius: 3px;
   flex: 1;
   padding: 12px;
@@ -294,12 +347,18 @@ const FilterGridItem = styled.div`
 `;
 
 // We want this wrapper to maining 30% width
-const FilterGridItemWrapper = styled.div`
+const FilterGridItemWrapper = styled('div')`
   padding: 12px;
   width: 50%;
 `;
 
-const FilterGridIcon = styled.div`
+const FilterItem = styled('div')`
+  display: flex;
+  flex: 1;
+  align-items: center;
+`;
+
+const FilterGridIcon = styled('div')`
   width: 38px;
   height: 38px;
   background-repeat: no-repeat;
@@ -309,31 +368,31 @@ const FilterGridIcon = styled.div`
   flex-shrink: 0;
 `;
 
-const FilterTitle = styled.div`
+const FilterTitle = styled('div')`
   font-size: 14px;
   font-weight: bold;
   line-height: 1;
   white-space: nowrap;
 `;
 
-const FilterDescription = styled.div`
-  color: ${p => p.theme.gray3};
+const FilterDescription = styled('div')`
+  color: ${p => p.theme.gray600};
   font-size: 12px;
   line-height: 1;
   white-space: nowrap;
 `;
 
-const BulkFilter = styled.div`
+const BulkFilter = styled('div')`
   text-align: right;
   padding: 0 12px;
 `;
 
-const BulkFilterLabel = styled.span`
+const BulkFilterLabel = styled('span')`
   font-weight: bold;
   margin-right: 6px;
 `;
 
-const BulkFilterItem = styled.a`
+const BulkFilterItem = styled('a')`
   border-right: 1px solid #f1f2f3;
   margin-right: 6px;
   padding-right: 6px;

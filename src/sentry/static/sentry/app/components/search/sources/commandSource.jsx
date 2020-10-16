@@ -2,8 +2,9 @@ import PropTypes from 'prop-types';
 import React from 'react';
 
 import {createFuzzySearch} from 'app/utils/createFuzzySearch';
-import {openSudo} from 'app/actionCreators/modal';
-import Feature from 'app/components/feature';
+import {openSudo, openHelpSearchModal} from 'app/actionCreators/modal';
+import {toggleLocaleDebug} from 'app/locale';
+import Access from 'app/components/acl/access';
 
 const ACTIONS = [
   {
@@ -23,6 +24,19 @@ const ACTIONS = [
       openSudo({
         superuser: true,
       }),
+  },
+
+  {
+    title: 'Toggle Translation Markers',
+    description: 'Toggles translation markers on or off in the application',
+    requiresSuperuser: true,
+    action: () => toggleLocaleDebug(),
+  },
+
+  {
+    title: 'Search Documentation and FAQ',
+    description: 'Open the Documentation and FAQ search modal.',
+    action: () => openHelpSearchModal(),
   },
 ];
 
@@ -78,13 +92,13 @@ class CommandSource extends React.Component {
   }
 
   render() {
-    let {searchMap, query, isSuperuser, children} = this.props;
+    const {searchMap, query, isSuperuser, children} = this.props;
 
-    let results =
+    const results =
       (this.state.fuzzy &&
         this.state.fuzzy
           .search(query)
-          .filter(({item, ...rest}) => !item.requiresSuperuser || isSuperuser)
+          .filter(({item}) => !item.requiresSuperuser || isSuperuser)
           .map(({item, ...rest}) => ({
             item: {
               ...item,
@@ -104,9 +118,9 @@ class CommandSource extends React.Component {
 }
 
 const CommandSourceWithFeature = props => (
-  <Feature isSuperuser>
+  <Access isSuperuser>
     {({hasSuperuser}) => <CommandSource {...props} isSuperuser={hasSuperuser} />}
-  </Feature>
+  </Access>
 );
 
 export default CommandSourceWithFeature;

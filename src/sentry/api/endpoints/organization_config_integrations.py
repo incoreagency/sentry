@@ -2,44 +2,32 @@ from __future__ import absolute_import
 
 from rest_framework.response import Response
 
-from sentry import integrations
+from sentry import integrations, features
 from sentry.api.bases.organization import OrganizationEndpoint
 from sentry.api.serializers import serialize, IntegrationProviderSerializer
-
-from sentry import features
-from django.conf import settings
+from sentry.utils.compat import filter
 
 
 class OrganizationConfigIntegrationsEndpoint(OrganizationEndpoint):
     def get(self, request, organization):
-        has_ghe = features.has('organizations:github-enterprise',
-                               organization,
-                               actor=request.user)
-        has_catchall = features.has('organizations:internal-catchall',
-                                    organization,
-                                    actor=request.user)
-        has_github_apps = features.has('organizations:github-apps',
-                                       organization,
-                                       actor=request.user)
+        def is_provider_enabled(provider):
+            if not provider.requires_feature_flag:
+                return True
+            feature_flag_name = "organizations:integrations-%s" % provider.key
+            return features.has(feature_flag_name, organization, actor=request.user)
 
-        providers = []
-        for provider in integrations.all():
-            internal_integrations = {i for i in settings.SENTRY_INTERNAL_INTEGRATIONS}
-            if has_ghe:
-                internal_integrations.remove('github_enterprise')
-            if has_github_apps:
-                internal_integrations.remove('github')
-            if not has_catchall and provider.key in internal_integrations:
-                continue
-
-            providers.append(provider)
+        providers = filter(is_provider_enabled, list(integrations.all()))
 
         providers.sort(key=lambda i: i.key)
 
         serialized = serialize(
-            providers,
-            organization=organization,
-            serializer=IntegrationProviderSerializer(),
+            providers, organization=organization, serializer=IntegrationProviderSerializer()
         )
 
-        return Response({'providers': serialized})
+        if "provider_key" in request.GET:
+            serialized = [d for d in serialized if d["key"] == request.GET["provider_key"]]
+
+        if not serialized:
+            return Response({"detail": "Providers do not exist"}, status=404)
+
+        return Response({"providers": serialized})
